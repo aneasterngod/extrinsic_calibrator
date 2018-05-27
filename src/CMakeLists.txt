@@ -1,11 +1,28 @@
 # Dongshin Kim, 2018-05-24 23:47
-include_directories (${extrinsic_calibrator_SOURCE_DIR}/src)
-link_directories (${extrinsic_calibrator_BINARY_DIR}/src)
-set (CORELIBS )
-add_executable (excalib excalib.cpp)
-target_link_libraries (excalib ${CORELIBS} )
-# for debugging --- print out all variable names:
-# get_cmake_property(_variableNames VARIABLES)
-# foreach (_variableName ${_variableNames})
-#    message(STATUS "${_variableName}=${${_variableName}}")
-# endforeach()
+
+include_directories (
+    ${extrinsic_calibrator_SOURCE_DIR}/src
+    ${extrinsic_calibrator_SOURCE_DIR}/include
+    /home/dongshin/Shares/include
+    /usr/include/eigen3
+)
+
+link_directories (
+    ${extrinsic_calibrator_BINARY_DIR}/src
+    /home/dongshin/Shares/lib
+)
+
+add_executable (excalib 
+    excalib.cpp
+    Calibrator.cpp    
+    ImageData.cpp
+    ImuData.cpp
+    FrameData.cpp
+)
+
+target_link_libraries(excalib
+    opencv_core
+    opencv_highgui
+    opencv_imgproc
+    pthread
+)
