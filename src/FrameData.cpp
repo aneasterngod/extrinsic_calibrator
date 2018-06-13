@@ -2,9 +2,10 @@
 namespace excalib
 {
 
-FrameData::FrameData()
+FrameData::FrameData(std::shared_ptr<GlobalParams>& p)
 {
     m_b_FeatureExtracted = false;
+    m_globalparams = p;
 }
 
 FrameData::~FrameData()
@@ -14,14 +15,14 @@ FrameData::~FrameData()
 FrameData &FrameData::operator=(const FrameData &dat)
 {
     m_imagedata = dat.m_imagedata;
-    m_ar_imudata.assign(dat.m_ar_imudata.begin(), dat.m_ar_imudata.end());
+    m_vector_imudata.assign(dat.m_vector_imudata.begin(), dat.m_vector_imudata.end());
     return *this;
 }
 
 FrameData::FrameData(const FrameData &dat)
 {
     m_imagedata = dat.m_imagedata;
-    m_ar_imudata.assign(dat.m_ar_imudata.begin(), dat.m_ar_imudata.end());
+    m_vector_imudata.assign(dat.m_vector_imudata.begin(), dat.m_vector_imudata.end());
 }
 
 void FrameData::setImageData(excalib::ImageData &dat)
@@ -30,11 +31,11 @@ void FrameData::setImageData(excalib::ImageData &dat)
 }
 void FrameData::setArImuData(vector<excalib::ImuData> &dat)
 {
-    m_ar_imudata.assign(dat.begin(), dat.end());
+    m_vector_imudata.assign(dat.begin(), dat.end());
 }
 
 void FrameData::clearArImuData(){
-    m_ar_imudata.clear();
+    m_vector_imudata.clear();
 }
 
 ImageData &FrameData::getImageData()
@@ -44,7 +45,7 @@ ImageData &FrameData::getImageData()
 
 vector<ImuData> &FrameData::getArImuData()
 {
-    return m_ar_imudata;
+    return m_vector_imudata;
 }
 
 void FrameData::computeFastFeature(){
@@ -59,9 +60,9 @@ void FrameData::print()
     cout << "Image: " << endl;
     m_imagedata.print();
     cout << "Begin: " << endl;
-    m_ar_imudata.front().print();
+    m_vector_imudata.front().print();
     cout << "End: " << endl;
-    m_ar_imudata.back().print();
+    m_vector_imudata.back().print();
 }
 
 } // namespace excalib

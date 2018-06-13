@@ -4,13 +4,15 @@
 #include "excalib_common.h"
 #include "ImageData.h"
 #include "ImuData.h"
+#include "GlobalParams.h"
+
 namespace excalib
 {
 
 class FrameData
 {
   public:
-    FrameData();
+    FrameData(std::shared_ptr<GlobalParams>& p);
     ~FrameData();
     FrameData & operator=(const FrameData &dat);
     FrameData(const FrameData &dat);
@@ -23,8 +25,9 @@ class FrameData
     void print();    
   private:
     excalib::ImageData m_imagedata;
-    vector<excalib::ImuData> m_ar_imudata;
+    vector<excalib::ImuData> m_vector_imudata;
     bool m_b_FeatureExtracted;
+    std::shared_ptr<GlobalParams> m_globalparams;
 };
 
 } // namespace excalib

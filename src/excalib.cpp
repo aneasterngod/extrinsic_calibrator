@@ -1,6 +1,7 @@
 #include <iostream>
+#include <memory>
 #include "Calibrator.h"
-
+#include "GlobalParams.h"
 
 string FILEPATH;
 
@@ -16,9 +17,9 @@ int main(int argc, char** argv){
     }
 
     
-
+    std::shared_ptr<GlobalParams> params(new GlobalParams());
     Calibrator cb;
-    cb.init();
+    cb.init(params);
     cb.run();
 
     return 0;

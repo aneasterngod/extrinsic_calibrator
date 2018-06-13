@@ -18,8 +18,9 @@ Calibrator::~Calibrator()
 {
 }
 
-void Calibrator::init()
+void Calibrator::init(std::shared_ptr<GlobalParams>& p)
 {
+    m_globalparams = p;
     if (FILEPATH != "")
     {
         // this is reading logging
@@ -72,7 +73,7 @@ void Calibrator::readImageInfo(string path)
         excalib::ImageData imagedata;
         imagedata.setTimestamp(s64_ts);
         imagedata.setImgfilepath(str_imgpath);
-        m_ar_imagedata.push_back(imagedata);
+        m_deque_imagedata.push_back(imagedata);
     }
     ifstream_infopath.close();
 }
@@ -103,7 +104,7 @@ void Calibrator::readImuData(string path)
         imudata.setTimestamp(s64_ts);
         imudata.setAcc(f32_acc[0], f32_acc[1], f32_acc[2]);
         imudata.setGyro(f32_gyro[0], f32_gyro[1], f32_gyro[2]);
-        m_ar_imudata.push_back(imudata);
+        m_deque_imudata.push_back(imudata);
     }
     ifstream_infopath.close();
 }
@@ -118,12 +119,12 @@ void Calibrator::file_feeder()
     while (1)
     {
         // read first image and first imu
-        excalib::ImageData imagedata = m_ar_imagedata.front();
+        excalib::ImageData imagedata = m_deque_imagedata.front();
         vector<excalib::ImuData> ar_imudata;
         while (1)
         {
             // store imu
-            excalib::ImuData imudata = m_ar_imudata.front();
+            excalib::ImuData imudata = m_deque_imudata.front();
             // 여기서 lowpass filtering 후 shift (change timestamp)
             // 50frame 0.07초 쉬프트 하면 맞는지 비교할것 70000 얼추 맞다.
             // octave에서 첫번째 컬럼인 타임스템프 첫번째 인자를 빼서 plot(imu(:,1), imu(:,2)) 이런식으로 비교가능하다.
@@ -149,11 +150,11 @@ void Calibrator::file_feeder()
 //            ofs << imudata.getTimestamp() << " " << imudata.getAcc().transpose() << " " << imudata.getGyro().transpose() << endl;
 //            ofs2 << filteredimudata.getTimestamp() << " " << filteredimudata.getAcc().transpose() << " " << filteredimudata.getGyro().transpose() << endl;
             ar_imudata.push_back(filteredimudata);
-            m_ar_imudata.pop_front();
+            m_deque_imudata.pop_front();
             s32_imu_count++;
         }
-        excalib::FrameData framedata;
-        m_ar_imagedata.pop_front();
+        excalib::FrameData framedata(m_globalparams);
+        m_deque_imagedata.pop_front();
 
         framedata.setImageData(imagedata);
         framedata.setArImuData(ar_imudata);
