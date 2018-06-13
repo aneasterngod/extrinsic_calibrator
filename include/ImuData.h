@@ -24,8 +24,8 @@ class ImuData
 
   private:
     int64_t m_s64_timestamp;
-    Eigen::Vector3d m_eigenvector3d_acc;
-    Eigen::Vector3d m_eigenvector3d_gyro;
+    Eigen::Vector3d m_vec3d_acc;
+    Eigen::Vector3d m_vec3d_gyro;
 };
 
 } // namespace excalib

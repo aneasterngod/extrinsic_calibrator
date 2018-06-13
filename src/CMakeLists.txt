@@ -18,9 +18,25 @@ add_executable (excalib
     ImageData.cpp
     ImuData.cpp
     FrameData.cpp
+    Preintegrator2.cpp 
+    RightJacobian.cpp
+    LowPassFilter.cpp
+)
+
+add_executable(testexcalib
+    test.cpp
+    Preintegrator.cpp    
 )
 
 target_link_libraries(excalib
+    opencv_core
+    opencv_highgui
+    opencv_imgproc
+    opencv_imgcodecs
+    pthread
+)
+
+target_link_libraries(testexcalib
     opencv_core
     opencv_highgui
     opencv_imgproc

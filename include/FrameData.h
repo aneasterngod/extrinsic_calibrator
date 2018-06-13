@@ -16,12 +16,15 @@ class FrameData
     FrameData(const FrameData &dat);
     void setImageData(excalib::ImageData& dat);
     void setArImuData(vector<excalib::ImuData>& dat);
+    void clearArImuData();
     excalib::ImageData& getImageData();
     vector<excalib::ImuData>& getArImuData();
-    void print();
+    void computeFastFeature();
+    void print();    
   private:
     excalib::ImageData m_imagedata;
     vector<excalib::ImuData> m_ar_imudata;
+    bool m_b_FeatureExtracted;
 };
 
 } // namespace excalib

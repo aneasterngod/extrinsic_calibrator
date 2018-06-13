@@ -4,6 +4,7 @@ namespace excalib
 
 FrameData::FrameData()
 {
+    m_b_FeatureExtracted = false;
 }
 
 FrameData::~FrameData()
@@ -32,6 +33,10 @@ void FrameData::setArImuData(vector<excalib::ImuData> &dat)
     m_ar_imudata.assign(dat.begin(), dat.end());
 }
 
+void FrameData::clearArImuData(){
+    m_ar_imudata.clear();
+}
+
 ImageData &FrameData::getImageData()
 {
     return m_imagedata;
@@ -40,6 +45,13 @@ ImageData &FrameData::getImageData()
 vector<ImuData> &FrameData::getArImuData()
 {
     return m_ar_imudata;
+}
+
+void FrameData::computeFastFeature(){
+    if(!m_b_FeatureExtracted){
+        bool nonmaxSuppression = true;
+	    //FAST(m_imagedata.getImage(), frame->m_framefeature->m_keypoints, fc.fast_threshold, nonmaxSuppression);
+    }
 }
 
 void FrameData::print()

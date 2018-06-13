@@ -42,6 +42,14 @@ std::string ImageData::getImgfliepath()
     return m_str_filepath;
 }
 
+void ImageData::loadImage(std::string path){
+    m_cvmat_img = cv::imread(path, cv::IMREAD_GRAYSCALE);
+}
+
+cv::Mat& ImageData::getImage(){
+    return m_cvmat_img;
+}
+
 void ImageData::print(){
      if(!m_cvmat_img.empty()){
         cout << "ts: " << m_s64_timestamp << " width: " << m_cvmat_img.rows << " height: " << m_cvmat_img.cols << " ";
