@@ -46,7 +46,7 @@ void ImageData::loadImage(std::string path){
     m_cvmat_img = cv::imread(path, cv::IMREAD_GRAYSCALE);
 }
 
-cv::Mat& ImageData::getImage(){
+const cv::Mat& ImageData::getImage(){
     return m_cvmat_img;
 }
 

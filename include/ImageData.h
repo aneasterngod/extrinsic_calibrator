@@ -16,7 +16,7 @@ class ImageData{
         void setImgfilepath(std::string path);
         std::string getImgfliepath();
         void loadImage(std::string path);
-        cv::Mat& getImage();
+        const cv::Mat& getImage();
         void print();
     private:
         std::string m_str_filepath;

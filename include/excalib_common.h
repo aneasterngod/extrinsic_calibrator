@@ -16,6 +16,7 @@ using namespace std;
 
 
 extern string FILEPATH;
+extern long __GFID__;
 #define rad2deg 114.59155902616465
 #define deg2rad 0.008726646259971648
 

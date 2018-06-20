@@ -18,9 +18,9 @@ Calibrator::~Calibrator()
 {
 }
 
-void Calibrator::init(std::shared_ptr<GlobalParams>& p)
+void Calibrator::init(std::shared_ptr<GlobalParams> &p)
 {
-    m_globalparams = p;
+    m_shared_ptr_globalparams = p;
     if (FILEPATH != "")
     {
         // this is reading logging
@@ -112,8 +112,8 @@ void Calibrator::readImuData(string path)
 void Calibrator::file_feeder()
 {
     cout << "File Feeder" << endl;
-//    ofstream ofs("test.txt");
-//    ofstream ofs2("test2.txt");
+    //    ofstream ofs("test.txt");
+    //    ofstream ofs2("test2.txt");
     int s32_imu_count = 0;
     bool b_first = true;
     while (1)
@@ -147,23 +147,23 @@ void Calibrator::file_feeder()
             }
             filteredimudata.setAcc(acc[0], acc[1], acc[2]);
             filteredimudata.setGyro(gyro[0], gyro[1], gyro[2]);
-//            ofs << imudata.getTimestamp() << " " << imudata.getAcc().transpose() << " " << imudata.getGyro().transpose() << endl;
-//            ofs2 << filteredimudata.getTimestamp() << " " << filteredimudata.getAcc().transpose() << " " << filteredimudata.getGyro().transpose() << endl;
+            //            ofs << imudata.getTimestamp() << " " << imudata.getAcc().transpose() << " " << imudata.getGyro().transpose() << endl;
+            //            ofs2 << filteredimudata.getTimestamp() << " " << filteredimudata.getAcc().transpose() << " " << filteredimudata.getGyro().transpose() << endl;
             ar_imudata.push_back(filteredimudata);
             m_deque_imudata.pop_front();
             s32_imu_count++;
         }
-        excalib::FrameData framedata(m_globalparams);
+        std::shared_ptr<excalib::FrameData> framedata(new excalib::FrameData(m_shared_ptr_globalparams));
         m_deque_imagedata.pop_front();
 
-        framedata.setImageData(imagedata);
-        framedata.setArImuData(ar_imudata);
+        framedata->setImageData(imagedata);
+        framedata->setArImuData(ar_imudata);
         if (s32_imu_count > 200)
         {
             if (b_first)
             {
                 b_first = false;
-                framedata.clearArImuData();
+                framedata->clearArImuData();
             }
             doProcess(framedata);
         }
@@ -180,38 +180,47 @@ void Calibrator::online_feeder()
     }
 }
 
-void Calibrator::doProcess(excalib::FrameData &fd)
+void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
 {
+    // everytime we get process here, we store framedata
+    m_deque_framedata.push_back(fd);
     // always first time only taken the image into account.
-    if(fd.getArImuData().size()==0){
-        // first one 
-        // set pose to zero
-        // extract feature
-        if(!m_b_online){
+    if (m_shared_ptr_globalparams->getMatchingType() == MATCHING)
+    {
+    }
+    else if (m_shared_ptr_globalparams->getMatchingType() == TRACKING)
+    {
+        if (!m_b_online)
+        {
             // load image
-            fd.getImageData().loadImage(fd.getImageData().getImgfliepath());
+            fd->getImageData().loadImage(fd->getImageData().getImgfliepath());
         }
-        fd.computeFastFeature();
-    }
-    else{
+        if (fd->getArImuData().size() == 0)
+        {
+            // first one
+            // set pose to zero
+            // extract feature
+            fd->computeFastFeature();
+            m_shared_ptr_lastprocessed_framedata = fd;
 
+            cv::Mat disp = fd->getImageData().getImage().clone();
+            cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
+            m_cvvisualizer.addPointFeatures(disp, fd->getPointFeatures());
+            cv::imshow("test", disp);
+            cv::waitKey(-1 );
+        }
+        else
+        {
+            // feature tracking
+            fd->doTracking(m_shared_ptr_lastprocessed_framedata);
+            m_shared_ptr_lastprocessed_framedata = fd;
+            cv::Mat disp = fd->getImageData().getImage().clone();
+            cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
+            m_cvvisualizer.addPointFeatures(disp, fd->getPointFeatures());
+            cv::imshow("test", disp);
+            cv::waitKey(-1 );
+        }
     }
-    // if (fd.getArImuData().size() != 0)
-    // {
-        // if (m_b_firsttimefeed)
-        // {
-        //     m_b_firsttimefeed = false;
-        //     return;
-        // }
-        // m_ar_framedata.push_back(fd);
-        // if (m_ar_framedata.size() >= m_int_steps)
-        // {
-
-        //     Preintegrator2 preint;
-        //     generatePreintegrator(m_ar_framedata, m_int_steps, preint);
-        // } 
-        //
-    // }
 }
 
 void Calibrator::generatePreintegrator(deque<excalib::FrameData> &queue, int steps, Preintegrator2 &preint)

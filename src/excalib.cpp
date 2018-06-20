@@ -18,6 +18,9 @@ int main(int argc, char** argv){
 
     
     std::shared_ptr<GlobalParams> params(new GlobalParams());
+
+    params->setMatchingType(TRACKING);
+
     Calibrator cb;
     cb.init(params);
     cb.run();

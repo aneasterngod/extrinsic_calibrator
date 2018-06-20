@@ -21,6 +21,8 @@ add_executable (excalib
     Preintegrator2.cpp 
     RightJacobian.cpp
     LowPassFilter.cpp
+    CvVisualizer.cpp
+    NewKeyPoint.cpp
 )
 
 add_executable(testexcalib
@@ -33,6 +35,8 @@ target_link_libraries(excalib
     opencv_highgui
     opencv_imgproc
     opencv_imgcodecs
+    opencv_features2d
+    opencv_video
     pthread
 )
 
