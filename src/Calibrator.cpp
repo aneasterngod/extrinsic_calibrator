@@ -207,7 +207,7 @@ void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
             cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
             m_cvvisualizer.addPointFeatures(disp, fd->getPointFeatures());
             cv::imshow("test", disp);
-            cv::waitKey(-1 );
+            cv::waitKey(3);
         }
         else
         {
@@ -218,7 +218,7 @@ void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
             cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
             m_cvvisualizer.addPointFeatures(disp, fd->getPointFeatures());
             cv::imshow("test", disp);
-            cv::waitKey(-1 );
+            cv::waitKey(3);
         }
     }
 }

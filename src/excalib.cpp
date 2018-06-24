@@ -20,6 +20,8 @@ int main(int argc, char** argv){
     std::shared_ptr<GlobalParams> params(new GlobalParams());
 
     params->setMatchingType(TRACKING);
+    params->setMinimumMaintainedTrackedFeatureNumber(100);
+    params->setFastThreshold(5);
 
     Calibrator cb;
     cb.init(params);

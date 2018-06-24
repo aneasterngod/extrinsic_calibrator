@@ -27,8 +27,7 @@ void CvVisualizer::addPointFeatures(cv::Mat &img, const std::vector<cv::KeyPoint
     for (int i = 0; i < kpts.size(); i++)
     {
         //cv::drawMarker(img, kpts[i].pt, cv::Scalar(m_vector_u8_colormapB[kpts[i].class_id], m_vector_u8_colormapG[kpts[i].class_id], m_vector_u8_colormapR[kpts[i].class_id]), cv::MARKER_DIAMOND, 1, 1, 8);
-        cout << kpts[i].class_id << endl;
-        cout << (int)m_vector_u8_colormapB[kpts[i].class_id] << " " << (int)m_vector_u8_colormapG[kpts[i].class_id] << " " << (int)m_vector_u8_colormapR[kpts[i].class_id] << endl;
-        cv::circle(img, kpts[i].pt, 2, cv::Scalar(m_vector_u8_colormapB[kpts[i].class_id], m_vector_u8_colormapG[kpts[i].class_id], m_vector_u8_colormapR[kpts[i].class_id]), 2, 8, 0);
+        if(kpts[i].valid)
+            cv::circle(img, kpts[i].pt, 2, cv::Scalar(m_vector_u8_colormapB[kpts[i].global_id], m_vector_u8_colormapG[kpts[i].global_id], m_vector_u8_colormapR[kpts[i].global_id]), 2, 8, 0);
     }
 }

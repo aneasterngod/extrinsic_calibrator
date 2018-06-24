@@ -22,9 +22,10 @@ class FrameData
     void clearArImuData();
     excalib::ImageData& getImageData();
     vector<excalib::ImuData>& getArImuData();
-    void computeFastFeature();
+    void computeFastFeature(bool accum = false);
     void keypoint2point(const vector<cv::KeyPoint>& src, vector<cv::Point2f>& dst) ;
     void point2keypoint(const vector<cv::Point2f>& src, vector<cv::KeyPoint>& dst) ;
+    void point2keypoint(const vector<cv::Point2f>& src, const vector<cv::KeyPoint>& src2, vector<cv::KeyPoint>& dst);
     void doTracking(std::shared_ptr<excalib::FrameData> prevframe);
     const vector<cv::KeyPoint>& getPointFeatures();    
     void print();    
@@ -32,7 +33,7 @@ class FrameData
     excalib::ImageData m_imagedata;
     vector<excalib::ImuData> m_vector_imudata;
     vector<cv::KeyPoint> m_vector_keypoints;    
-    bool m_b_FeatureExtracted;
+    //    bool m_b_FeatureExtracted;
     std::shared_ptr<GlobalParams> m_globalparams;
 };
 
