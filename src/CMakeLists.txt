@@ -22,7 +22,6 @@ add_executable (excalib
     RightJacobian.cpp
     LowPassFilter.cpp
     CvVisualizer.cpp
-    NewKeyPoint.cpp
 )
 
 add_executable(testexcalib

@@ -5,7 +5,6 @@
 #include "ImageData.h"
 #include "ImuData.h"
 #include "GlobalParams.h"
-#include "NewKeyPoint.h"
 #include <opencv2/opencv.hpp>
 
 namespace excalib
