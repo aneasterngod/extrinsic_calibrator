@@ -11,14 +11,21 @@ class Preintegrator{
 public:
     Preintegrator();
     ~Preintegrator();
-    void init();    
-    void addSignals(float ax, float ay, float az, float rx, float ry, float rz, float dt);
+    void addSignals(double ax, double ay, double az, double rx, double ry, double rz, double ts);
+    void setPrevOmega(Eigen::Vector3d v);
+    const Eigen::Vector3d& getCurrOmega();    
+    double getLatestTS();
+    void setLatestTS(double v);
     void printAll();
 private:
-    Sophus::SO3d m_so3_delta_phi_ij;
     Eigen::Vector3d m_vec3_delta_vi_ij;
     Eigen::Vector3d m_vec3_delta_pi_ij;
+    Eigen::Matrix3d m_mat33_delta_phi_ij;
     Eigen::Matrix3d m_mat33_delta_vr_ij;
     Eigen::Matrix3d m_mat33_delta_pr_ij;
+
+    Eigen::Vector3d m_vec3_prev_omega;
+    Eigen::Vector3d m_vec3_curr_omega;
+    double m_double_latestTS;
 };
 #endif

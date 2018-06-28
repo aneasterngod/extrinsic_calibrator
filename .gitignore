@@ -81,3 +81,5 @@ build/CMakeFiles/Progress/2
 build/CMakeFiles/Progress/5
 build/CMakeFiles/Progress/count.txt
 build/src/CMakeFiles/excalib.dir/CvVisualizer.cpp.o
+build/src/CMakeFiles/excalib.dir/worldpt.cpp.o
+build/src/CMakeFiles/excalib.dir/Preintegrator.cpp.o

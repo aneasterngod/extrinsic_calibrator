@@ -18,10 +18,11 @@ add_executable (excalib
     ImageData.cpp
     ImuData.cpp
     FrameData.cpp
-    Preintegrator2.cpp 
+    Preintegrator.cpp 
     RightJacobian.cpp
     LowPassFilter.cpp
     CvVisualizer.cpp
+    worldpt.cpp
 )
 
 add_executable(testexcalib

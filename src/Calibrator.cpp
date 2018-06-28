@@ -18,7 +18,7 @@ Calibrator::~Calibrator()
 {
 }
 
-void Calibrator::init(std::shared_ptr<GlobalParams> &p)
+void Calibrator::init(std::shared_ptr<GlobalParams> p)
 {
     m_shared_ptr_globalparams = p;
     if (FILEPATH != "")
@@ -157,15 +157,20 @@ void Calibrator::file_feeder()
         m_deque_imagedata.pop_front();
 
         framedata->setImageData(imagedata);
-        framedata->setArImuData(ar_imudata);
+        framedata->setImuData(ar_imudata);
         if (s32_imu_count > 200)
         {
             if (b_first)
             {
                 b_first = false;
-                framedata->clearArImuData();
+                framedata->clearImuData();
             }
+            m_deque_disposable_framedata.push_back(framedata);
             doProcess(framedata);
+            if (createKeyframe(framedata))
+            {
+                m_vector_shared_ptr_keyframes.push_back(framedata);
+            }
         }
     }
     // ofs.close();
@@ -180,10 +185,36 @@ void Calibrator::online_feeder()
     }
 }
 
+bool Calibrator::createKeyframe(std::shared_ptr<excalib::FrameData> currframe)
+{
+    if (m_vector_shared_ptr_keyframes.size() == 0)
+        return true;
+    Sophus::SE3d diffpose = m_vector_shared_ptr_keyframes.back()->getPose().inverse() * currframe->getPose();
+    double transdiff = diffpose.translation().norm();
+    double rotxdiff = diffpose.angleX() * rad2deg;
+    double rotydiff = diffpose.angleY() * rad2deg;
+    double rotzdiff = diffpose.angleZ() * rad2deg;
+    if (transdiff > 1)
+    {
+        return true;
+    }
+    if (rotxdiff > 5)
+    {
+        return true;
+    }
+    if (rotydiff > 5)
+    {
+        return true;
+    }
+    if (rotzdiff > 5)
+    {
+        return true;
+    }
+    return false;
+}
+
 void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
 {
-    // everytime we get process here, we store framedata
-    m_deque_framedata.push_back(fd);
     // always first time only taken the image into account.
     if (m_shared_ptr_globalparams->getMatchingType() == MATCHING)
     {
@@ -194,35 +225,67 @@ void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
         {
             // load image
             fd->getImageData().loadImage(fd->getImageData().getImgfliepath());
+            fd->getImageData().undistort(m_shared_ptr_globalparams->getKcv(), m_shared_ptr_globalparams->getDcv());
         }
-        if (fd->getArImuData().size() == 0)
+        if (fd->getImuData().size() == 0)
         {
             // first one
             // set pose to zero
             // extract feature
-            fd->computeFastFeature();
-            m_shared_ptr_lastprocessed_framedata = fd;
+            //fd->computeFastFeature();
+            fd->computeGFTFeature();
+            m_vector_processed_framedata.push_back(fd);
 
-            cv::Mat disp = fd->getImageData().getImage().clone();
+            cv::Mat disp = fd->getImageData().getUndistortedImage().clone();
             cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
             m_cvvisualizer.addPointFeatures(disp, fd->getPointFeatures());
             cv::imshow("test", disp);
+            //cv::imshow("distroted", fd->getImageData().getImage());
             cv::waitKey(3);
         }
         else
         {
             // feature tracking
-            fd->doTracking(m_shared_ptr_lastprocessed_framedata);
-            m_shared_ptr_lastprocessed_framedata = fd;
-            cv::Mat disp = fd->getImageData().getImage().clone();
+            fd->doTracking(m_vector_processed_framedata.back());
+            // generate preintegrator
+            // from previously generated and current one
+
+            generatePreintegrator(m_deque_disposable_framedata, m_vector_processed_framedata, fd);
+            // get position
+
+            // get extrinsic calibration
+
+            m_vector_processed_framedata.push_back(fd);
+            cv::Mat disp = fd->getImageData().getUndistortedImage().clone();
             cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
             m_cvvisualizer.addPointFeatures(disp, fd->getPointFeatures());
             cv::imshow("test", disp);
+            //cv::imshow("distroted", fd->getImageData().getImage());
             cv::waitKey(3);
         }
     }
 }
 
-void Calibrator::generatePreintegrator(deque<excalib::FrameData> &queue, int steps, Preintegrator2 &preint)
+void Calibrator::generatePreintegrator(deque<std::shared_ptr<excalib::FrameData>> &disposable_dequeframes, vector<std::shared_ptr<excalib::FrameData>> &processedframes, std::shared_ptr<excalib::FrameData> fd)
 {
+    if (processedframes.size() != 0)
+    {
+        fd->getPreintegrator()->setPrevOmega(processedframes.back()->getPreintegrator()->getCurrOmega());
+        fd->getPreintegrator()->setLatestTS(processedframes.back()->getPreintegrator()->getLatestTS());
+    }
+    while (1)
+    {
+        if (disposable_dequeframes.size() == 0)
+            break;
+        for (int i = 0; i < disposable_dequeframes.front()->getImuData().size(); i++)
+        {
+            fd->getPreintegrator()->addSignals(disposable_dequeframes.front()->getImuData()[i].getAcc()(0),
+                                               disposable_dequeframes.front()->getImuData()[i].getAcc()(1),
+                                               disposable_dequeframes.front()->getImuData()[i].getAcc()(2),
+                                               disposable_dequeframes.front()->getImuData()[i].getGyro()(0),
+                                               disposable_dequeframes.front()->getImuData()[i].getGyro()(1),
+                                               disposable_dequeframes.front()->getImuData()[i].getGyro()(2), disposable_dequeframes.front()->getImuData()[i].getTimestamp());
+        }
+        disposable_dequeframes.pop_front();
+    }
 }

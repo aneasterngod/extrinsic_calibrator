@@ -46,10 +46,17 @@ void ImageData::loadImage(std::string path){
     m_cvmat_img = cv::imread(path, cv::IMREAD_GRAYSCALE);
 }
 
+void ImageData::undistort(const cv::Mat& K, const cv::Mat& D){
+    // this is unrectified image, so rectify the image
+    cv::undistort(m_cvmat_img, m_cvmat_undistorted_img, K, D);    
+}
+
 const cv::Mat& ImageData::getImage(){
     return m_cvmat_img;
 }
-
+const cv::Mat& ImageData::getUndistortedImage(){
+    return m_cvmat_undistorted_img;
+}
 void ImageData::print(){
      if(!m_cvmat_img.empty()){
         cout << "ts: " << m_s64_timestamp << " width: " << m_cvmat_img.rows << " height: " << m_cvmat_img.cols << " ";
