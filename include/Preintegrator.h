@@ -26,6 +26,7 @@ private:
 
     Eigen::Vector3d m_vec3_prev_omega;
     Eigen::Vector3d m_vec3_curr_omega;
+    double m_double_elapsedT;
     double m_double_latestTS;
 };
 #endif

@@ -11,10 +11,11 @@ Preintegrator::Preintegrator()
     m_vec3_delta_pi_ij.setZero();
     m_mat33_delta_vr_ij.setZero();
     m_mat33_delta_pr_ij.setZero();
-    m_mat33_delta_phi_ij.setZero();
+    m_mat33_delta_phi_ij.setIdentity();
     m_vec3_prev_omega.setZero();
     m_vec3_curr_omega.setZero();
     m_double_latestTS = 0;
+    m_double_elapsedT = 0;
 }
 
 Preintegrator::~Preintegrator()
@@ -23,7 +24,9 @@ Preintegrator::~Preintegrator()
 
 void Preintegrator::addSignals(double ax, double ay, double az, double rx, double ry, double rz, double ts)
 {
+
     double dt = ts - m_double_latestTS;
+    dt = dt / 1000000.0;
     if (m_double_latestTS == 0)
         dt = 0.001;
     double dt2 = dt * dt;
@@ -31,7 +34,7 @@ void Preintegrator::addSignals(double ax, double ay, double az, double rx, doubl
     Sophus::SO3d so3_omega;
     m_vec3_curr_omega << rx, ry, rz;
     Eigen::Vector3d vec3_acc(ax, ay, az);
-    so3_omega = Sophus::SO3d::exp(m_vec3_curr_omega);
+    so3_omega = Sophus::SO3d::exp(m_vec3_curr_omega * dt);
 
     Eigen::Vector3d alpha = (m_vec3_curr_omega - m_vec3_prev_omega) / dt;
     Eigen::Matrix3d skew_alpha = Sophus::SO3d::hat(alpha);
@@ -46,8 +49,7 @@ void Preintegrator::addSignals(double ax, double ay, double az, double rx, doubl
     m_mat33_delta_phi_ij = m_mat33_delta_phi_ij * so3_omega.matrix();
 
     m_double_latestTS = ts;
-
-    printAll();
+    m_double_elapsedT = m_double_elapsedT + dt;
 }
 
 void Preintegrator::setPrevOmega(Eigen::Vector3d v)
@@ -73,6 +75,7 @@ void Preintegrator::setLatestTS(double v)
 void Preintegrator::printAll()
 {
     Sophus::SO3d tmpphi(m_mat33_delta_phi_ij);
+    cout << "Elapsed Time: " << m_double_elapsedT << endl;
     cout << "Conventional Delta Phi" << endl;
     cout << tmpphi.angleX() * rad2deg << " " << tmpphi.angleY() * rad2deg << " " << tmpphi.angleZ() * rad2deg << endl;
     cout << "Conventional Delta V" << endl;

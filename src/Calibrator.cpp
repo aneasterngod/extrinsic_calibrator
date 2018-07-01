@@ -249,10 +249,9 @@ void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
             fd->doTracking(m_vector_processed_framedata.back());
             // generate preintegrator
             // from previously generated and current one
-
             generatePreintegrator(m_deque_disposable_framedata, m_vector_processed_framedata, fd);
             // get position
-
+            
             // get extrinsic calibration
 
             m_vector_processed_framedata.push_back(fd);
@@ -279,6 +278,8 @@ void Calibrator::generatePreintegrator(deque<std::shared_ptr<excalib::FrameData>
             break;
         for (int i = 0; i < disposable_dequeframes.front()->getImuData().size(); i++)
         {
+            cout << "Adding signal: " << disposable_dequeframes.front()->getImuData()[i].getAcc().transpose() << " " << disposable_dequeframes.front()->getImuData()[i].getGyro().transpose() << " " << disposable_dequeframes.front()->getImuData()[i].getTimestamp() << endl;
+
             fd->getPreintegrator()->addSignals(disposable_dequeframes.front()->getImuData()[i].getAcc()(0),
                                                disposable_dequeframes.front()->getImuData()[i].getAcc()(1),
                                                disposable_dequeframes.front()->getImuData()[i].getAcc()(2),
@@ -286,6 +287,7 @@ void Calibrator::generatePreintegrator(deque<std::shared_ptr<excalib::FrameData>
                                                disposable_dequeframes.front()->getImuData()[i].getGyro()(1),
                                                disposable_dequeframes.front()->getImuData()[i].getGyro()(2), disposable_dequeframes.front()->getImuData()[i].getTimestamp());
         }
+        fd->getPreintegrator()->printAll();
         disposable_dequeframes.pop_front();
     }
 }
