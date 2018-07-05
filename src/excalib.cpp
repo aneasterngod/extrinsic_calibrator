@@ -24,6 +24,7 @@ int main(int argc, char** argv){
     params->setmineigen(0.0001);
     params->setMinfeaturedist(10);
     Eigen::Matrix3d K;
+    // The following is the number of 26802554
     K << 609.995173118313, 0, 382.503162687338, 0, 616.931905036158, 245.479029559645, 0, 0, 1;
     Eigen::Matrix<double, 5, 1> D;
     D << -0.135174425459394, 0.124463816968010, 0.000544090737966000, 0.00166513896881900, 0;

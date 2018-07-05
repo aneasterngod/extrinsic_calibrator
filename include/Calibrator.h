@@ -25,6 +25,7 @@ class Calibrator{
         bool createKeyframe(std::shared_ptr<excalib::FrameData> currframe);
         void doProcess(std::shared_ptr<excalib::FrameData> fd);
         void generatePreintegrator(deque<std::shared_ptr<excalib::FrameData>> &disposable_dequeframes, vector<std::shared_ptr<excalib::FrameData>>& processedframes, std::shared_ptr<excalib::FrameData> fd);
+        void doBA();
     private:
         bool m_b_online;
         std::thread m_thread_filefeeder;

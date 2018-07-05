@@ -251,7 +251,7 @@ void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
             // from previously generated and current one
             generatePreintegrator(m_deque_disposable_framedata, m_vector_processed_framedata, fd);
             // get position
-            
+            doBA();
             // get extrinsic calibration
 
             m_vector_processed_framedata.push_back(fd);
@@ -290,4 +290,8 @@ void Calibrator::generatePreintegrator(deque<std::shared_ptr<excalib::FrameData>
         fd->getPreintegrator()->printAll();
         disposable_dequeframes.pop_front();
     }
+}
+
+void Calibrator::doBA(){
+    
 }

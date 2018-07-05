@@ -23,6 +23,7 @@ add_executable (excalib
     LowPassFilter.cpp
     CvVisualizer.cpp
     worldpt.cpp
+    ceres_BA.cpp
 )
 
 add_executable(testexcalib
