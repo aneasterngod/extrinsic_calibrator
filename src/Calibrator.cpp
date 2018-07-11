@@ -233,7 +233,8 @@ void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
             // set pose to zero
             // extract feature
             //fd->computeFastFeature();
-            fd->computeGFTFeature();
+            bool accum = true;
+            fd->computeGFTFeature(accum);
             m_vector_processed_framedata.push_back(fd);
 
             cv::Mat disp = fd->getImageData().getUndistortedImage().clone();
@@ -251,7 +252,7 @@ void Calibrator::doProcess(std::shared_ptr<excalib::FrameData> fd)
             // from previously generated and current one
             generatePreintegrator(m_deque_disposable_framedata, m_vector_processed_framedata, fd);
             // get position
-            doBA();
+            doBA(m_vector_processed_framedata, fd);
             // get extrinsic calibration
 
             m_vector_processed_framedata.push_back(fd);
@@ -292,6 +293,48 @@ void Calibrator::generatePreintegrator(deque<std::shared_ptr<excalib::FrameData>
     }
 }
 
-void Calibrator::doBA(){
-    
+double Calibrator::moveDistance(std::shared_ptr<excalib::FrameData> fd)
+{
+    double sum = 0;
+    for (int i = 0; i < fd->getPointFeatures().size(); i++)
+    {
+        cv::Point2f diff = fd->getPointFeatures()[i]->pt-fd->getPointFeatures()[i]->sharedptr_kpt->pt;
+        sum += diff.ddot(diff);
+    }
+    sum /= fd->getPointFeatures().size();
+    return sum;
+}
+
+void Calibrator::doBA(vector<std::shared_ptr<excalib::FrameData>> &processedframes, std::shared_ptr<excalib::FrameData> fd)
+{
+    if (moveDistance(fd) < 10)
+        return;
+
+    cout << fd->getPointFeatures().size() << endl;
+    for (int i = 0; i < fd->getPointFeatures().size(); i++)
+    {
+        cout << i << ":" << fd->getPointFeatures()[i]->pt << endl;
+        cout << i << ":" << fd->getPointFeatures()[i]->sharedptr_3dpt->transpose() << endl;
+        cout << i << ":" << fd->getPointFeatures()[i]->sharedptr_kpt->pt << endl;
+        cout << i << ":" << fd->getPointFeatures()[i]->sharedptr_3dpt->transpose() << endl;
+    }
+    exit(1);
+
+    // for (int i = 0; i < currentinputindices.size(); i++) {
+    // 	Eigen::Matrix<double, 6, 1> epose(m_pg.m_data[currentinputindices[i]]->m_pose.get());
+    // 	for (int j = 0; j < m_pg.m_data[currentinputindices[i]]->m_matches.size(); j++) {
+    // 		int t = m_pg.m_data[currentinputindices[i]]->m_matches[j].trainIdx;
+    // 		long ti = m_pg.m_data[currentinputindices[i]]->m_img->m_tracklet_ids[t];
+    // 		int q = m_pg.m_data[currentinputindices[i]]->m_keyframe->m_img->m_trackletid2index[ti];
+    // 		cv::Point2f currpt = m_pg.m_data[currentinputindices[i]]->m_img->m_keypoints[t].pt;
+    // 		Eigen::Vector3d ecurrpt;
+    // 		ecurrpt << currpt.x, currpt.y, 1;
+    // 		if (is3dptvalid(m_pg.m_data[currentinputindices[i]]->m_keyframe->m_map->m_worldpts[q].m_pt.get())) {
+    // 			CostFunction* cost_function = new NumericDiffCostFunction<ceres_REFINER, ceres::CENTRAL, 3, 3>(new ceres_REFINER(ecurrpt, epose, m_K));
+    // 			m_refiner_problem->AddResidualBlock(cost_function, NULL, m_pg.m_data[currentinputindices[i]]->m_keyframe->m_map->m_worldpts[q].m_pt.get());
+    // 			cnt++;
+    // 		}
+    // 	}
+    // 	cout << "[refinemap_loop] refiner input: " << m_pg.m_data[currentinputindices[i]]->m_frameid << endl;
+    // }
 }

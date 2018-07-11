@@ -186,11 +186,14 @@ void FrameData::doTracking(std::shared_ptr<excalib::FrameData> prevframe)
         }
         m_vector_shared_ptr_keypoints[i]->global_id = prevframe->getPointFeatures()[i]->global_id;
         m_vector_shared_ptr_keypoints[i]->sharedptr_3dpt = prevframe->getPointFeatures()[i]->sharedptr_3dpt;
+        m_vector_shared_ptr_keypoints[i]->sharedptr_kpt = prevframe->getPointFeatures()[i];
+        
     }
     if (tracked_cnt < m_shared_ptr_globalparams->getMinimumMaintainedTrackedFeatureNumber())
     {
         //computeFastFeature(true);
-        computeGFTFeature(true);
+        bool accum = true;
+        computeGFTFeature(accum);
     }
 
     cout << endl;
