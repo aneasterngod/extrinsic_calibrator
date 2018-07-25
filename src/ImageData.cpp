@@ -1,6 +1,4 @@
 #include "ImageData.h"
-namespace excalib
-{
 
 ImageData::ImageData()
 {
@@ -69,4 +67,3 @@ void ImageData::print(){
         cout << "Filepath: " << m_str_filepath << endl;
     }
 }
-} // namespace excalib

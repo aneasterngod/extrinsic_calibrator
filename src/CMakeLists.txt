@@ -37,8 +37,11 @@ target_link_libraries(excalib
     opencv_imgproc
     opencv_imgcodecs
     opencv_features2d
+    opencv_calib3d
     opencv_video
     pthread
+    ceres
+    glog
 )
 
 target_link_libraries(testexcalib

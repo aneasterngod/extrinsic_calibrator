@@ -3,9 +3,6 @@
 
 #include "excalib_common.h"
 
-namespace excalib
-{
-
 class ImuData
 {
   public:
@@ -28,6 +25,5 @@ class ImuData
     Eigen::Vector3d m_vec3d_gyro;
 };
 
-} // namespace excalib
 
 #endif

@@ -3,7 +3,6 @@
 
 #include "excalib_common.h"
 
-namespace excalib{
 
 class ImageData{
     public:
@@ -27,6 +26,6 @@ class ImageData{
         int64_t m_s64_timestamp;
 };
 
-}
+
 
 #endif

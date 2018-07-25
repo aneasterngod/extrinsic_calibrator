@@ -1,6 +1,4 @@
 #include "ImuData.h"
-namespace excalib
-{
 
 ImuData::ImuData()
 {
@@ -57,4 +55,3 @@ void ImuData::print()
 {
     cout << "ts: " << m_s64_timestamp << " " << m_vec3d_acc(0) << " " << m_vec3d_acc(1) << " " << m_vec3d_acc(2) << " " << m_vec3d_gyro(0) << " " << m_vec3d_gyro(1) << " " << m_vec3d_gyro(2) << endl;
 }
-} // namespace excalib

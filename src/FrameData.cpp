@@ -1,14 +1,13 @@
 #include "FrameData.h"
 
 long __GFID__ = 0;
-namespace excalib
-{
 
 FrameData::FrameData(std::shared_ptr<GlobalParams> p)
 {
     //m_b_FeatureExtracted = false;
     m_shared_ptr_globalparams = p;
     m_shared_ptr_preint_prev2curr = std::shared_ptr<Preintegrator>(new Preintegrator());
+    memset(m_doublearray_pose, 0, sizeof(double)*6);
 }
 
 FrameData::~FrameData()
@@ -28,11 +27,11 @@ FrameData::FrameData(const FrameData &dat)
     m_vector_imudata.assign(dat.m_vector_imudata.begin(), dat.m_vector_imudata.end());
 }
 
-void FrameData::setImageData(excalib::ImageData &dat)
+void FrameData::setImageData(ImageData &dat)
 {
     m_imagedata = dat;
 }
-void FrameData::setImuData(vector<excalib::ImuData> &dat)
+void FrameData::setImuData(vector<ImuData> &dat)
 {
     m_vector_imudata.assign(dat.begin(), dat.end());
 }
@@ -52,7 +51,7 @@ vector<ImuData> &FrameData::getImuData()
     return m_vector_imudata;
 }
 
-void FrameData::computeFastFeature(bool accum)
+void FrameData::computeFastFeature(bool accum, bool worldptgen)
 {
     if (!accum)
         m_vector_shared_ptr_keypoints.clear();
@@ -66,11 +65,13 @@ void FrameData::computeFastFeature(bool accum)
         tmpkeypoints[i].valid = true;
 
         m_vector_shared_ptr_keypoints.push_back(std::shared_ptr<cv::KeyPoint>(new cv::KeyPoint(tmpkeypoints[i])));
-        
-        if (accum)
+
+        if (worldptgen)
         {
             Eigen::Vector3d ipt(tmpkeypoints[i].pt.x, tmpkeypoints[i].pt.y, 1);
             Eigen::Vector3d wpt = m_shared_ptr_globalparams->getKinv() * ipt;
+            // add current position
+            wpt = m_se3_pose * wpt;
             std::shared_ptr<Eigen::Vector3d> swpt(new Eigen::Vector3d(wpt));
             m_vector_shared_ptr_vec3_worldpoints.push_back(swpt);
             m_vector_shared_ptr_keypoints.back()->sharedptr_3dpt = swpt;
@@ -78,7 +79,7 @@ void FrameData::computeFastFeature(bool accum)
     }
 }
 
-void FrameData::computeGFTFeature(bool accum)
+void FrameData::computeGFTFeature(bool accum, bool worldptgen)
 {
     if (!accum)
         m_vector_shared_ptr_keypoints.clear();
@@ -111,10 +112,12 @@ void FrameData::computeGFTFeature(bool accum)
 
         m_vector_shared_ptr_keypoints.push_back(std::shared_ptr<cv::KeyPoint>(new cv::KeyPoint(tmpkeypoints[i])));
 
-        if (accum)
+        if (worldptgen)
         {
             Eigen::Vector3d ipt(tmpkeypoints[i].pt.x, tmpkeypoints[i].pt.y, 1);
             Eigen::Vector3d wpt = m_shared_ptr_globalparams->getKinv() * ipt;
+            // add current position
+            wpt = m_se3_pose * wpt;
             std::shared_ptr<Eigen::Vector3d> swpt(new Eigen::Vector3d(wpt));
             m_vector_shared_ptr_vec3_worldpoints.push_back(swpt);
             m_vector_shared_ptr_keypoints.back()->sharedptr_3dpt = swpt;
@@ -140,6 +143,16 @@ void FrameData::point2keypoint(const vector<cv::Point2f> &src, vector<cv::KeyPoi
         dst.push_back(kpt);
     }
 }
+void FrameData::point2keypoint(const vector<cv::Point2f> &src, vector<shared_ptr<cv::KeyPoint>> &dst)
+{
+    dst.clear();
+    for (int i = 0; i < (int)src.size(); i++)
+    {
+        cv::KeyPoint kpt;
+        kpt.pt = src[i];
+        dst.push_back(std::shared_ptr<cv::KeyPoint>(new cv::KeyPoint(kpt)));
+    }
+}
 void FrameData::point2keypoint(const vector<cv::Point2f> &src, const vector<shared_ptr<cv::KeyPoint>> &src2, vector<shared_ptr<cv::KeyPoint>> &dst)
 {
     dst.clear();
@@ -153,7 +166,7 @@ void FrameData::point2keypoint(const vector<cv::Point2f> &src, const vector<shar
     }
 }
 
-void FrameData::doTracking(std::shared_ptr<excalib::FrameData> prevframe)
+bool FrameData::doTracking(std::shared_ptr<FrameData> prevframe)
 {
     vector<uchar> status;
     vector<float> errors;
@@ -180,14 +193,15 @@ void FrameData::doTracking(std::shared_ptr<excalib::FrameData> prevframe)
                 tracked_cnt++;
             }
         }
+
         else
         {
             m_vector_shared_ptr_keypoints[i]->valid = false;
         }
         m_vector_shared_ptr_keypoints[i]->global_id = prevframe->getPointFeatures()[i]->global_id;
         m_vector_shared_ptr_keypoints[i]->sharedptr_3dpt = prevframe->getPointFeatures()[i]->sharedptr_3dpt;
-        m_vector_shared_ptr_keypoints[i]->sharedptr_kpt = prevframe->getPointFeatures()[i];
-        
+        m_vector_shared_ptr_keypoints[i]->sharedptr_prev = prevframe->getPointFeatures()[i];
+        prevframe->getPointFeatures()[i]->sharedptr_next = m_vector_shared_ptr_keypoints[i];
     }
     if (tracked_cnt < m_shared_ptr_globalparams->getMinimumMaintainedTrackedFeatureNumber())
     {
@@ -195,13 +209,20 @@ void FrameData::doTracking(std::shared_ptr<excalib::FrameData> prevframe)
         bool accum = true;
         computeGFTFeature(accum);
     }
+    if (m_vector_shared_ptr_keypoints.size() < m_shared_ptr_globalparams->getMinimumMaintainedTrackedFeatureNumber())
+        return false;
 
-    cout << endl;
+    return true;
 }
 
 const vector<shared_ptr<cv::KeyPoint>> &FrameData::getPointFeatures()
 {
     return m_vector_shared_ptr_keypoints;
+}
+
+void FrameData::setPointFeatures(vector<shared_ptr<cv::KeyPoint>> &dst)
+{
+    m_vector_shared_ptr_keypoints = dst;
 }
 
 void FrameData::print()
@@ -219,28 +240,32 @@ const Sophus::SE3d &FrameData::getPose()
     return m_se3_pose;
 }
 
+const double* FrameData::getRawPose(){
+    return m_doublearray_pose;
+}
+
 void FrameData::setPose(Sophus::SE3d v)
 {
     m_se3_pose = v;
 }
 
-void FrameData::initWorldpts()
-{
-    for (int i = 0; i < m_vector_shared_ptr_keypoints.size(); i++)
-    {
-        Eigen::Vector3d ipt(m_vector_shared_ptr_keypoints[i]->pt.x, m_vector_shared_ptr_keypoints[i]->pt.y, 1);
-        Eigen::Vector3d wpt = m_shared_ptr_globalparams->getKinv() * ipt;
-        std::shared_ptr<Eigen::Vector3d> swpt(new Eigen::Vector3d(wpt));
-        m_vector_shared_ptr_vec3_worldpoints.push_back(swpt);
-        m_vector_shared_ptr_keypoints[i]->sharedptr_3dpt = swpt;
-    }
-}
+// void FrameData::initWorldpts()
+// {
+//     for (int i = 0; i < m_vector_shared_ptr_keypoints.size(); i++)
+//     {
+//         Eigen::Vector3d ipt(m_vector_shared_ptr_keypoints[i]->pt.x, m_vector_shared_ptr_keypoints[i]->pt.y, 1);
+//         Eigen::Vector3d wpt = m_shared_ptr_globalparams->getKinv() * ipt;
+//         std::shared_ptr<Eigen::Vector3d> swpt(new Eigen::Vector3d(wpt));
+//         m_vector_shared_ptr_vec3_worldpoints.push_back(swpt);
+//         m_vector_shared_ptr_keypoints[i]->sharedptr_3dpt = swpt;
+//     }
+// }
 
-std::shared_ptr<Preintegrator> FrameData::getPreintegrator(){
+std::shared_ptr<Preintegrator> FrameData::getPreintegrator()
+{
     return m_shared_ptr_preint_prev2curr;
 }
-void FrameData::setPreintegrator(std::shared_ptr<Preintegrator> v){
+void FrameData::setPreintegrator(std::shared_ptr<Preintegrator> v)
+{
     m_shared_ptr_preint_prev2curr = v;
 }
-
-} // namespace excalib
