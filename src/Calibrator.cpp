@@ -320,7 +320,7 @@ bool Calibrator::doBA(std::shared_ptr<FrameData> currframe)
         Eigen::Vector3d ipt(currframe->getPointFeatures()[i]->pt.x,currframe->getPointFeatures()[i]->pt.y,1);
         CostFunction *cost_function = new ceres::NumericDiffCostFunction<ceres_BA, ceres::CENTRAL, 3, 6, 3>(
             new ceres_BA(ipt, K));
-        m_sharedptr_ceresproblem_for_ba->AddResidualBlock(cost_function, NULL, currframe->getRawPose(), currframe->getPointFeatures()[i]->sharedptr_3dpt);
+        //m_sharedptr_ceresproblem_for_ba->AddResidualBlock(cost_function, NULL, currframe->getRawPose(), currframe->getPointFeatures()[i]->sharedptr_3dpt);
     }
     
 
