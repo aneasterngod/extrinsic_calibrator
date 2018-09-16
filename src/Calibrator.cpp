@@ -12,6 +12,25 @@ Calibrator::Calibrator()
         m_lowpassfilters[i].setCutOffFrequency(20); // after 50(1000/20) is valid (warm up stage) 50frame is about 0.02sec
         m_lowpassfilters[i].setDeltaTime(0.001);
     }
+
+    m_ofs1.open("./in.txt");
+    m_ofs2.open("./out.txt");
+
+    m_pclviewer.run();
+
+    // 정말 기억하고 있어야 할 것이... 아래는 포인트를 그 방향으로 돌리는 루틴이다. 축을 돌리는 것이 아니다.
+    // 그리고 translation부터 적용한다.
+    // Eigen::Vector3d eigen_rotation(0, 0, 90 * deg2rad);
+    // Sophus::SO3d so3_pose = Sophus::SO3d::exp(eigen_rotation);
+    // Eigen::Vector3d eigen_translation(0, 1, 0);
+    // Sophus::SE3d se3_pose(so3_pose, eigen_translation);
+
+    // Eigen::Vector3d point(1, 0, 0);
+
+    // Eigen::Vector3d outpoint = se3_pose * point;
+    // Eigen::Vector3d outpoint2 = se3_pose.inverse() * point;
+    // cout << outpoint << endl;
+    // cout << outpoint2 << endl;
 }
 
 Calibrator::~Calibrator()
@@ -34,6 +53,7 @@ void Calibrator::init(std::shared_ptr<GlobalParams> p)
         // this is online
         m_b_online = true;
     }
+ //   m_gtsamSLAM.initialization(m_shared_ptr_globalparams->getK());
 }
 
 void Calibrator::run()
@@ -194,9 +214,9 @@ bool Calibrator::createKeyframe(std::shared_ptr<FrameData> currframe)
         return true;
     Sophus::SE3d diffpose = m_vector_shared_ptr_keyframes.back()->getPose().inverse() * currframe->getPose();
     double transdiff = diffpose.translation().norm();
-    double rotxdiff = diffpose.angleX() * rad2deg;
-    double rotydiff = diffpose.angleY() * rad2deg;
-    double rotzdiff = diffpose.angleZ() * rad2deg;
+    double rotxdiff = diffpose.angleX() * Rad2deg;
+    double rotydiff = diffpose.angleY() * Rad2deg;
+    double rotzdiff = diffpose.angleZ() * Rad2deg;
     if (transdiff > 1)
     {
         return true;
@@ -219,6 +239,11 @@ bool Calibrator::createKeyframe(std::shared_ptr<FrameData> currframe)
 void Calibrator::doProcess(std::shared_ptr<FrameData> fd)
 {
     std::shared_ptr<FrameData> currframe = fd;
+    if (m_deque_longterm_all_framedata.size() != 0)
+    {
+        currframe->clonePose(m_deque_longterm_all_framedata.back());
+        currframe->print();
+    }
     m_deque_longterm_all_framedata.push_back(currframe);
 
     // always first time only taken the image into account.
@@ -238,17 +263,40 @@ void Calibrator::doProcess(std::shared_ptr<FrameData> fd)
             // this is the first frame, so create keyframe
             createKF(currframe);
             m_sharedptr_latest_trackedframe = currframe;
+            bool nosolve = true;
+//            const Pose3 &pose, const vector<Point3> &obs, const int &sequenceid
+            //m_gtsamSLAM.addPose(currframe->getGtsam))
+            // doBA(currframe, nosolve);
         }
         else
         {
             // feature tracking
             if (doTrack(m_sharedptr_latest_trackedframe, currframe))
             {
-                cout << "Success tracking " << currframe->getID() << " "
-                     << "on " << m_sharedptr_latest_trackedframe->getID() << endl;
-                m_sharedptr_latest_trackedframe = currframe;
-                if (doBA(currframe))
+                double dist = moveDistance(m_sharedptr_latest_trackedframe, currframe);
+                if (dist > 30)
                 {
+                    cout << "Success tracking " << currframe->getID() << " "
+                         << "on " << m_sharedptr_latest_trackedframe->getID() << endl;
+                    cout << "moved distance: " << dist << endl;
+
+                    m_pclviewer.setFeaturePoints(currframe->getPointFeatures());
+
+                    cv::Mat disp = currframe->getImageData().getUndistortedImage().clone();
+                    cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
+                    m_cvvisualizer.addPointFeatures(disp, currframe->getPointFeatures());
+                    cv::imshow("tracked frame", disp);
+                    //cv::imshow("distroted", fd->getImageData().getImage());
+                    cv::waitKey(3);
+
+                    // if (doBA(currframe))
+                    // {
+                    //     m_pclviewer.setFeaturePoints(currframe->getPointFeatures());
+                    //     m_sharedptr_latest_trackedframe = currframe;
+                    // }
+                    // else
+                    // {
+                    // }
                 }
             }
             else
@@ -300,31 +348,133 @@ void Calibrator::doProcess(std::shared_ptr<FrameData> fd)
     }
 }
 
-bool Calibrator::doBA(std::shared_ptr<FrameData> currframe)
+bool Calibrator::doBA(std::shared_ptr<FrameData> currframe, bool nosolve)
 {
-    // m_sharedptr_ceresproblem_for_ba
-    ceres::Solver::Options options;
-    //	options.linear_solver_type = ceres::SPARSE_SCHUR;
-    //	options.linear_solver_type = ceres::DENSE_SCHUR;
-    //	options.linear_solver_type = ceres::DENSE_QR;
-    options.linear_solver_type = ceres::ITERATIVE_SCHUR;
-    //	options.max_num_iterations = 20;
-    //	options.num_linear_solver_threads = 24;
-    //	options.function_tolerance = 1.0e-32;
-    //	options.min_trust_region_radius = 1.0e-50;
-    //	options.max_solver_time_in_seconds = 0.2;
-    options.minimizer_progress_to_stdout = false;
-    ceres::Solver::Summary summary;
-    for(int i=0;i<currframe->getPointFeatures().size();i++){
-        Eigen::Matrix3d K = m_shared_ptr_globalparams->getK();
-        Eigen::Vector3d ipt(currframe->getPointFeatures()[i]->pt.x,currframe->getPointFeatures()[i]->pt.y,1);
-        CostFunction *cost_function = new ceres::NumericDiffCostFunction<ceres_BA, ceres::CENTRAL, 3, 6, 3>(
-            new ceres_BA(ipt, K));
-        //m_sharedptr_ceresproblem_for_ba->AddResidualBlock(cost_function, NULL, currframe->getRawPose(), currframe->getPointFeatures()[i]->sharedptr_3dpt);
-    }
-    
+    // // m_sharedptr_ceresproblem_for_ba
+    // ceres::Solver::Options options;
+    // //	options.linear_solver_type = ceres::SPARSE_SCHUR;
+    // //	options.linear_solver_type = ceres::DENSE_SCHUR;
+    // //	options.linear_solver_type = ceres::DENSE_QR;
+    // options.linear_solver_type = ceres::ITERATIVE_SCHUR;
+    // options.max_num_iterations = 20;
+    // //	options.function_tolerance = 1.0e-32;
+    // options.min_trust_region_radius = 1.0e-50;
+    // //	options.max_solver_time_in_seconds = 0.2;
+    // options.minimizer_progress_to_stdout = false;
+    // ceres::Solver::Summary summary;
+    // m_ofs1 << currframe->getID() << endl;
+    // for (int i = 0; i < currframe->getPointFeatures().size(); i++)
+    // {
+    //     if (currframe->getPointFeatures()[i]->valid)
+    //     {
+    //         Eigen::Matrix3d K = m_shared_ptr_globalparams->getK();
+    //         Eigen::Vector3d ipt(currframe->getPointFeatures()[i]->pt.x, currframe->getPointFeatures()[i]->pt.y, 1);
+    //         Eigen::Vector3d iptprev;
+    //         if (currframe->getPointFeatures()[i]->sharedptr_prev)
+    //         {
+    //             iptprev = Eigen::Vector3d(currframe->getPointFeatures()[i]->sharedptr_prev->pt.x, currframe->getPointFeatures()[i]->sharedptr_prev->pt.y, 1);
+    //         }
+    //         CostFunction *cost_function = new ceres::NumericDiffCostFunction<ceres_BA, ceres::CENTRAL, 3, 6, 3>(
+    //             new ceres_BA(ipt, K));
+    //         m_ofs1 << currframe->getPointFeatures()[i]->global_id << " " << ipt.transpose() << " ";
+    //         // cout << "ipt: " << ipt.transpose() << endl;
+    //         // if (currframe->getPointFeatures()[i]->sharedptr_prev)
+    //         // {
+    //         //     cout << "previpt: " << iptprev.transpose() << endl;
+    //         // }
+    //         // cout << "K" << endl;
+    //         // cout << K << endl;
+    //         // cout << "given pose: " << currframe->getRawPose() << " " << currframe->getRawPose()[0] << " " << currframe->getRawPose()[1] << " " << currframe->getRawPose()[2] << " " << currframe->getRawPose()[3] << " " << currframe->getRawPose()[4] << " " << currframe->getRawPose()[5] << endl;
+    //         // cout << "given landmark: " << currframe->getPointFeatures()[i]->global_id << " " << currframe->getPointFeatures()[i]->sharedptr_3dpt.get() << " " << currframe->getPointFeatures()[i]->sharedptr_3dpt.get()[0] << " " << currframe->getPointFeatures()[i]->sharedptr_3dpt.get()[1] << " " << currframe->getPointFeatures()[i]->sharedptr_3dpt.get()[2] << endl;
+    //         m_sharedptr_ceresproblem_for_ba->AddResidualBlock(cost_function, NULL, currframe->getRawPose(), currframe->getPointFeatures()[i]->sharedptr_3dpt.get());
+    //         m_ofs1 << currframe->getRawPose() << " " << currframe->getRawPose()[0] << " " << currframe->getRawPose()[1] << " " << currframe->getRawPose()[2] << " " << currframe->getRawPose()[3] << " " << currframe->getRawPose()[4] << " " << currframe->getRawPose()[5] << " ";
+    //         m_ofs1 << currframe->getPointFeatures()[i]->sharedptr_3dpt.get() << " " << currframe->getPointFeatures()[i]->sharedptr_3dpt.get()[0] << " " << currframe->getPointFeatures()[i]->sharedptr_3dpt.get()[1] << " " << currframe->getPointFeatures()[i]->sharedptr_3dpt.get()[2] << endl;
+    //     }
+    // }
+    // if (nosolve)
+    // {
+    //     // this is supposed to be the first one
+    //     m_sharedptr_ceresproblem_for_ba->SetParameterBlockConstant(currframe->getRawPose());
+    // }
+    // else
+    // {
+    //     Solve(options, m_sharedptr_ceresproblem_for_ba.get(), &summary);
+    //     if (summary.IsSolutionUsable())
+    //     {
+    //         //여기서 거리가 너무 이상한 피처는 없앤다. 현재의 FOV를 고려하자.
+    //         filter_outof_FOV(currframe);
+    //         m_deque_shortterm_BAed_framedata.push_back(currframe);
+    //         for (int i = 0; i < m_deque_shortterm_BAed_framedata.size(); i++)
+    //         {
+    //             m_ofs2 << m_deque_shortterm_BAed_framedata[i]->getID() << endl;
+    //             for (int j = 0; j < m_deque_shortterm_BAed_framedata[i]->getPointFeatures().size(); j++)
+    //             {
 
-    Solve(options, m_sharedptr_ceresproblem_for_ba.get(), &summary);
+    //                 //뷰어를 만들어 input / output을 정확하게 체크하자
+    //                 m_ofs2 << m_deque_shortterm_BAed_framedata[i]->getPointFeatures()[j]->global_id << " ";
+    //                 m_ofs2 << m_deque_shortterm_BAed_framedata[i]->getRawPose()[0] << " " << m_deque_shortterm_BAed_framedata[i]->getRawPose()[1] << " " << m_deque_shortterm_BAed_framedata[i]->getRawPose()[2] << " " << m_deque_shortterm_BAed_framedata[i]->getRawPose()[3] << " " << m_deque_shortterm_BAed_framedata[i]->getRawPose()[4] << " " << m_deque_shortterm_BAed_framedata[i]->getRawPose()[5] << " ";
+    //                 m_ofs2 << m_deque_shortterm_BAed_framedata[i]->getPointFeatures()[j]->sharedptr_3dpt.get() << " " << m_deque_shortterm_BAed_framedata[i]->getPointFeatures()[j]->sharedptr_3dpt.get()[0] << " " << m_deque_shortterm_BAed_framedata[i]->getPointFeatures()[j]->sharedptr_3dpt.get()[1] << " " << m_deque_shortterm_BAed_framedata[i]->getPointFeatures()[j]->sharedptr_3dpt.get()[2] << endl;
+    //             }
+    //         }
+    //         // because only raw pose was computed, it is necessary to convert the raw pose to se3 pose
+    //         currframe->convertRawpose2SE3();
+    //         cout << summary.FullReport() << endl;
+    //         // 왜 전체 포즈가 다시 조정되지 않는지 살펴볼것
+    //         for (int i = 0; i < m_deque_longterm_all_framedata.size(); i++)
+    //         {
+    //             m_deque_longterm_all_framedata[i]->print();
+    //         }
+    //         return true;
+    //     }
+    // }
+    return false;
+}
+
+void Calibrator::filter_outof_FOV(std::shared_ptr<FrameData> frame)
+{
+    // compute FOV of the current position
+    for (int i = 0; i < frame->getPointFeatures().size(); i++)
+    {
+        // feature 에 연결되어 있는 3dpt는 global coordinate를 따른다.
+        // 그렇기에, 다시 로컬로 바꾸어주어야 한다.
+        Eigen::Vector3d wpt(frame->getPointFeatures()[i]->sharedptr_3dpt.get()[0], frame->getPointFeatures()[i]->sharedptr_3dpt.get()[1], frame->getPointFeatures()[i]->sharedptr_3dpt.get()[2]);
+        Eigen::Vector3d lpt = frame->getPose().inverse() * wpt;
+        bool filterout = false;
+        if (lpt(2) < lpt(0))
+        {
+            // filter out
+            filterout = true;
+        }
+        else if (lpt(2) < 0)
+        {
+            // filter out
+            filterout = true;
+        }
+        else if (lpt(2) > 83)
+        {
+            // filter out
+            filterout = true;
+        }
+        else if (lpt(2) < -lpt(0))
+        {
+            // filter out
+            filterout = true;
+        }
+        else if (lpt(2) < lpt(1))
+        {
+            // filter out
+            filterout = true;
+        }
+        else if (lpt(2) < -lpt(1))
+        {
+            // filter out
+            filterout = true;
+        }
+        if (filterout)
+        {
+            frame->getPointFeatures()[i]->valid = false;
+        }
+    }
 }
 
 bool Calibrator::doTrack(std::shared_ptr<FrameData> prevframe, std::shared_ptr<FrameData> currframe)
@@ -348,6 +498,7 @@ bool Calibrator::doTrack(std::shared_ptr<FrameData> prevframe, std::shared_ptr<F
     int tracked_cnt = 0;
     for (int i = 0; i < currframe->getPointFeatures().size(); i++)
     {
+        cout << 1 << endl;
         if (status[i] == 1)
         {
             if (prevframe->getPointFeatures()[i]->valid)
@@ -356,18 +507,44 @@ bool Calibrator::doTrack(std::shared_ptr<FrameData> prevframe, std::shared_ptr<F
                 tracked_cnt++;
             }
         }
-
         else
         {
             currframe->getPointFeatures()[i]->valid = false;
         }
+        cout << 2 << endl;
         currframe->getPointFeatures()[i]->global_id = prevframe->getPointFeatures()[i]->global_id;
         currframe->getPointFeatures()[i]->sharedptr_3dpt = prevframe->getPointFeatures()[i]->sharedptr_3dpt;
         currframe->getPointFeatures()[i]->sharedptr_prev = prevframe->getPointFeatures()[i];
         prevframe->getPointFeatures()[i]->sharedptr_next = currframe->getPointFeatures()[i];
+        cout << 3 << endl;
+        cout << currframe->getPointFeatures()[i]->pt.x << " " << currframe->getPointFeatures()[i]->pt.y << endl;
+        if (currframe->getPointFeatures()[i]->pt.x < 0 || 
+            currframe->getPointFeatures()[i]->pt.y < 0 || 
+            currframe->getPointFeatures()[i]->pt.x >= currframe->getImageData().getUndistortedImage().cols || 
+            currframe->getPointFeatures()[i]->pt.y >= currframe->getImageData().getUndistortedImage().rows)
+        {
+            currframe->getPointFeatures()[i]->valid = false;
+        }
+        cout << 3.2 << endl;
+        if (currframe->getPointFeatures()[i]->valid)
+        {
+            cout << 3.3 << endl;
+            cout << currframe->getImageData().getUndistortedImage().cols << " " << currframe->getImageData().getUndistortedImage().rows << endl;
+            uchar b = currframe->getImageData().getUndistortedImage().at<cv::Vec3b>(currframe->getPointFeatures()[i]->pt.x, currframe->getPointFeatures()[i]->pt.y)[0];
+            uchar g = currframe->getImageData().getUndistortedImage().at<cv::Vec3b>(currframe->getPointFeatures()[i]->pt.x, currframe->getPointFeatures()[i]->pt.y)[1];
+            uchar r = currframe->getImageData().getUndistortedImage().at<cv::Vec3b>(currframe->getPointFeatures()[i]->pt.x, currframe->getPointFeatures()[i]->pt.y)[2];
+            cout << 3.4 << endl;
+            currframe->getPointFeatures()[i]->color = cv::Scalar(b, g, r);
+            cout << 3.5 << endl;
+        }
+        else
+        {
+            currframe->getPointFeatures()[i]->color = prevframe->getPointFeatures()[i]->color;
+        }
+        cout << 4 << endl;
     }
-    cout << "Tracked feature number: " << tracked_cnt << endl;
-
+    //cout << "Tracked feature number: " << tracked_cnt << endl;
+    cout << 5 << endl;
     if (tracked_cnt < m_shared_ptr_globalparams->getMinimumMaintainedTrackedFeatureNumber())
     {
         // //computeFastFeature(true);
@@ -449,9 +626,10 @@ double Calibrator::moveDistance(std::shared_ptr<FrameData> f1, std::shared_ptr<F
     for (int i = 0; i < f2->getPointFeatures().size(); i++)
     {
         std::shared_ptr<cv::KeyPoint> cursor = f2->getPointFeatures()[i];
+        int frameid = f2->getID();
         while (1)
         {
-            if (cursor->ptr_connectedframe == f1.get())
+            if (frameid == f1->getID())
             {
                 break;
             }
@@ -460,6 +638,7 @@ double Calibrator::moveDistance(std::shared_ptr<FrameData> f1, std::shared_ptr<F
                 break;
             }
             cursor = cursor->sharedptr_prev;
+            frameid--;
         }
         cv::Point2f diff = cursor->pt - f2->getPointFeatures()[i]->pt;
         sum += sqrt(diff.x * diff.x + diff.y * diff.y);
@@ -492,31 +671,31 @@ void Calibrator::filterFundamental(std::shared_ptr<FrameData> f1)
     }
 }
 
-bool Calibrator::doBA(vector<std::shared_ptr<FrameData>> &processedframes, std::shared_ptr<FrameData> fd)
-{
-    double dist = moveDistance(processedframes.back(), fd);
-    if (dist < 10)
-        return false;
-    filterFundamental(processedframes.back());
-    // for (int i = 0; i < currentinputindices.size(); i++) {
-    // 	Eigen::Matrix<double, 6, 1> epose(m_pg.m_data[currentinputindices[i]]->m_pose.get());
-    // 	for (int j = 0; j < m_pg.m_data[currentinputindices[i]]->m_matches.size(); j++) {
-    // 		int t = m_pg.m_data[currentinputindices[i]]->m_matches[j].trainIdx;
-    // 		long ti = m_pg.m_data[currentinputindices[i]]->m_img->m_tracklet_ids[t];
-    // 		int q = m_pg.m_data[currentinputindices[i]]->m_keyframe->m_img->m_trackletid2index[ti];
-    // 		cv::Point2f currpt = m_pg.m_data[currentinputindices[i]]->m_img->m_keypoints[t].pt;
-    // 		Eigen::Vector3d ecurrpt;
-    // 		ecurrpt << currpt.x, currpt.y, 1;
-    // 		if (is3dptvalid(m_pg.m_data[currentinputindices[i]]->m_keyframe->m_map->m_worldpts[q].m_pt.get())) {
-    // 			CostFunction* cost_function = new NumericDiffCostFunction<ceres_REFINER, ceres::CENTRAL, 3, 3>(new ceres_REFINER(ecurrpt, epose, m_K));
-    // 			m_refiner_problem->AddResidualBlock(cost_function, NULL, m_pg.m_data[currentinputindices[i]]->m_keyframe->m_map->m_worldpts[q].m_pt.get());
-    // 			cnt++;
-    // 		}
-    // 	}
-    // 	cout << "[refinemap_loop] refiner input: " << m_pg.m_data[currentinputindices[i]]->m_frameid << endl;
-    // }
-    return true;
-}
+// bool Calibrator::doBA(vector<std::shared_ptr<FrameData>> &processedframes, std::shared_ptr<FrameData> fd)
+// {
+//     double dist = moveDistance(processedframes.back(), fd);
+//     if (dist < 10)
+//         return false;
+//     filterFundamental(processedframes.back());
+//     // for (int i = 0; i < currentinputindices.size(); i++) {
+//     // 	Eigen::Matrix<double, 6, 1> epose(m_pg.m_data[currentinputindices[i]]->m_pose.get());
+//     // 	for (int j = 0; j < m_pg.m_data[currentinputindices[i]]->m_matches.size(); j++) {
+//     // 		int t = m_pg.m_data[currentinputindices[i]]->m_matches[j].trainIdx;
+//     // 		long ti = m_pg.m_data[currentinputindices[i]]->m_img->m_tracklet_ids[t];
+//     // 		int q = m_pg.m_data[currentinputindices[i]]->m_keyframe->m_img->m_trackletid2index[ti];
+//     // 		cv::Point2f currpt = m_pg.m_data[currentinputindices[i]]->m_img->m_keypoints[t].pt;
+//     // 		Eigen::Vector3d ecurrpt;
+//     // 		ecurrpt << currpt.x, currpt.y, 1;
+//     // 		if (is3dptvalid(m_pg.m_data[currentinputindices[i]]->m_keyframe->m_map->m_worldpts[q].m_pt.get())) {
+//     // 			CostFunction* cost_function = new NumericDiffCostFunction<ceres_REFINER, ceres::CENTRAL, 3, 3>(new ceres_REFINER(ecurrpt, epose, m_K));
+//     // 			m_refiner_problem->AddResidualBlock(cost_function, NULL, m_pg.m_data[currentinputindices[i]]->m_keyframe->m_map->m_worldpts[q].m_pt.get());
+//     // 			cnt++;
+//     // 		}
+//     // 	}
+//     // 	cout << "[refinemap_loop] refiner input: " << m_pg.m_data[currentinputindices[i]]->m_frameid << endl;
+//     // }
+//     return true;
+// }
 
 void Calibrator::createKF(std::shared_ptr<FrameData> kf)
 {
@@ -524,13 +703,13 @@ void Calibrator::createKF(std::shared_ptr<FrameData> kf)
     bool gen3dpt = true;
     kf->computeGFTFeature(accum, gen3dpt);
     cout << "Feature added and new accumulated feature number: " << kf->getPointFeatures().size() << " on " << kf->getID() << endl;
-    m_sharedptr_ceresproblem_for_ba = std::shared_ptr<ceres::Problem>(new ceres::Problem);
+    //m_sharedptr_ceresproblem_for_ba = std::shared_ptr<ceres::Problem>(new ceres::Problem);
     m_deque_longterm_keyframe_framedata.push_back(kf);
 
-    cv::Mat disp = kf->getImageData().getUndistortedImage().clone();
-    cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
-    m_cvvisualizer.addPointFeatures(disp, kf->getPointFeatures());
-    cv::imshow("keyframe", disp);
-    //cv::imshow("distroted", fd->getImageData().getImage());
-    cv::waitKey(-1);
+    // cv::Mat disp = kf->getImageData().getUndistortedImage().clone();
+    // cv::cvtColor(disp, disp, cv::COLOR_GRAY2BGR);
+    // m_cvvisualizer.addPointFeatures(disp, kf->getPointFeatures());
+    // cv::imshow("keyframe", disp);
+    // //cv::imshow("distroted", fd->getImageData().getImage());
+    // cv::waitKey(-1);
 }

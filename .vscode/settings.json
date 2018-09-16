@@ -48,6 +48,13 @@
         "optional": "cpp",
         "string_view": "cpp",
         "hash_map": "cpp",
-        "core": "cpp"
+        "core": "cpp",
+        "csignal": "cpp",
+        "atomic": "cpp",
+        "strstream": "cpp",
+        "bitset": "cpp",
+        "cinttypes": "cpp",
+        "typeindex": "cpp",
+        "*.ipp": "cpp"
     }
 }

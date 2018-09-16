@@ -6,6 +6,8 @@
 
 class ImageData{
     public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    public:
         ImageData();
         ~ImageData();
         ImageData & operator=(const ImageData &dat);
@@ -19,6 +21,7 @@ class ImageData{
         const cv::Mat& getImage();
         const cv::Mat& getUndistortedImage();
         void print();
+        string type2str(int type);
     private:
         std::string m_str_filepath;
         cv::Mat m_cvmat_img;

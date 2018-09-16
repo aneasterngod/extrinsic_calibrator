@@ -11,6 +11,8 @@
 
 class RJ {
 public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+public:
 	RJ();
 	~RJ();
 	static Eigen::Matrix<double, 3, 3> Jr(const Eigen::Matrix<double, 3, 1>& x);

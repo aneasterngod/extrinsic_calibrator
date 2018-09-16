@@ -2,12 +2,14 @@
 
 long __GFID__ = 0;
 
-FrameData::FrameData(std::shared_ptr<GlobalParams> p)
+FrameData::FrameData(const std::shared_ptr<GlobalParams> &p)
 {
     //m_b_FeatureExtracted = false;
     m_shared_ptr_globalparams = p;
     m_shared_ptr_preint_prev2curr = std::shared_ptr<Preintegrator>(new Preintegrator());
-    memset(m_doublearray_pose, 0, sizeof(double)*6);
+    memset(m_doublearray_pose, 0, sizeof(double) * 6);
+    //gtsam::Vector6 vec6(m_doublearray_pose);
+    //m_gtsam_pose = gtsam::Pose3::Expmap(vec6);
 }
 
 FrameData::~FrameData()
@@ -72,8 +74,11 @@ void FrameData::computeFastFeature(bool accum, bool worldptgen)
             Eigen::Vector3d wpt = m_shared_ptr_globalparams->getKinv() * ipt;
             // add current position
             wpt = m_se3_pose * wpt;
-            std::shared_ptr<Eigen::Vector3d> swpt(new Eigen::Vector3d(wpt));
-            m_vector_shared_ptr_vec3_worldpoints.push_back(swpt);
+            std::shared_ptr<double> swpt(new double[3]);
+            swpt.get()[0] = wpt(0);
+            swpt.get()[1] = wpt(1);
+            swpt.get()[2] = wpt(2);
+            m_vector_shared_ptr_worldpoints.push_back(swpt);
             m_vector_shared_ptr_keypoints.back()->sharedptr_3dpt = swpt;
         }
     }
@@ -116,11 +121,17 @@ void FrameData::computeGFTFeature(bool accum, bool worldptgen)
         {
             Eigen::Vector3d ipt(tmpkeypoints[i].pt.x, tmpkeypoints[i].pt.y, 1);
             Eigen::Vector3d wpt = m_shared_ptr_globalparams->getKinv() * ipt;
-            // add current position
             wpt = m_se3_pose * wpt;
-            std::shared_ptr<Eigen::Vector3d> swpt(new Eigen::Vector3d(wpt));
-            m_vector_shared_ptr_vec3_worldpoints.push_back(swpt);
+            std::shared_ptr<double> swpt(new double[3]);
+            swpt.get()[0] = wpt(0);
+            swpt.get()[1] = wpt(1);
+            swpt.get()[2] = wpt(2);
+            m_vector_shared_ptr_worldpoints.push_back(swpt);
             m_vector_shared_ptr_keypoints.back()->sharedptr_3dpt = swpt;
+            uchar b = m_imagedata.getUndistortedImage().at<cv::Vec3b>(m_vector_shared_ptr_keypoints.back()->pt.x, m_vector_shared_ptr_keypoints.back()->pt.y)[0];
+            uchar g = m_imagedata.getUndistortedImage().at<cv::Vec3b>(m_vector_shared_ptr_keypoints.back()->pt.x, m_vector_shared_ptr_keypoints.back()->pt.y)[1];
+            uchar r = m_imagedata.getUndistortedImage().at<cv::Vec3b>(m_vector_shared_ptr_keypoints.back()->pt.x, m_vector_shared_ptr_keypoints.back()->pt.y)[2];
+            m_vector_shared_ptr_keypoints.back()->color = cv::Scalar(b, g, r);
         }
     }
 }
@@ -166,6 +177,12 @@ void FrameData::point2keypoint(const vector<cv::Point2f> &src, const vector<shar
     }
 }
 
+void FrameData::convertRawpose2SE3()
+{
+    Eigen::Matrix<double, 6, 1> eigen_pose(m_doublearray_pose);
+    m_se3_pose = Sophus::SE3d::exp(eigen_pose);
+}
+
 bool FrameData::doTracking(std::shared_ptr<FrameData> prevframe)
 {
     vector<uchar> status;
@@ -185,16 +202,11 @@ bool FrameData::doTracking(std::shared_ptr<FrameData> prevframe)
     int tracked_cnt = 0;
     for (int i = 0; i < m_vector_shared_ptr_keypoints.size(); i++)
     {
-        if (status[i] == 1)
+        if (prevframe->getPointFeatures()[i]->valid && status[i] == 1)
         {
-            if (prevframe->getPointFeatures()[i]->valid)
-            {
-                m_vector_shared_ptr_keypoints[i]->valid = true;
-                tracked_cnt++;
-            }
-        }
-
-        else
+            m_vector_shared_ptr_keypoints[i]->valid = true;
+            tracked_cnt++;
+        }else
         {
             m_vector_shared_ptr_keypoints[i]->valid = false;
         }
@@ -202,6 +214,10 @@ bool FrameData::doTracking(std::shared_ptr<FrameData> prevframe)
         m_vector_shared_ptr_keypoints[i]->sharedptr_3dpt = prevframe->getPointFeatures()[i]->sharedptr_3dpt;
         m_vector_shared_ptr_keypoints[i]->sharedptr_prev = prevframe->getPointFeatures()[i];
         prevframe->getPointFeatures()[i]->sharedptr_next = m_vector_shared_ptr_keypoints[i];
+        uchar b = m_imagedata.getUndistortedImage().at<cv::Vec3b>(m_vector_shared_ptr_keypoints[i]->pt.x, m_vector_shared_ptr_keypoints[i]->pt.y)[0];
+        uchar g = m_imagedata.getUndistortedImage().at<cv::Vec3b>(m_vector_shared_ptr_keypoints[i]->pt.x, m_vector_shared_ptr_keypoints[i]->pt.y)[1];
+        uchar r = m_imagedata.getUndistortedImage().at<cv::Vec3b>(m_vector_shared_ptr_keypoints[i]->pt.x, m_vector_shared_ptr_keypoints[i]->pt.y)[2];
+        m_vector_shared_ptr_keypoints[i]->color = cv::Scalar(b, g, r);
     }
     if (tracked_cnt < m_shared_ptr_globalparams->getMinimumMaintainedTrackedFeatureNumber())
     {
@@ -233,6 +249,8 @@ void FrameData::print()
     m_vector_imudata.front().print();
     cout << "End: " << endl;
     m_vector_imudata.back().print();
+    cout << "Pose: " << endl;
+    cout << &m_doublearray_pose[0] << ": " << m_se3_pose.translation().transpose() << endl;
 }
 
 const Sophus::SE3d &FrameData::getPose()
@@ -240,8 +258,18 @@ const Sophus::SE3d &FrameData::getPose()
     return m_se3_pose;
 }
 
-const double* FrameData::getRawPose(){
+double *FrameData::getRawPose()
+{
     return m_doublearray_pose;
+}
+
+void FrameData::clonePose(std::shared_ptr<FrameData> fp)
+{
+    for (int i = 0; i < 6; i++)
+    {
+        m_doublearray_pose[i] = fp->getRawPose()[i];
+    }
+    convertRawpose2SE3();
 }
 
 void FrameData::setPose(Sophus::SE3d v)
@@ -269,3 +297,11 @@ void FrameData::setPreintegrator(std::shared_ptr<Preintegrator> v)
 {
     m_shared_ptr_preint_prev2curr = v;
 }
+
+
+// void FrameData::setGtsampose(const gtsam::Vector6& pose){
+//     m_gtsam_pose = gtsam::Pose3::Expmap(pose);
+// }
+// const gtsam::Pose3& FrameData::getGtsampose(){
+//     return m_gtsam_pose;
+// }

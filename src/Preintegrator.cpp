@@ -2,20 +2,10 @@
 
 using namespace std;
 
-#define rad2deg 114.59155902616465
-#define deg2rad 0.008726646259971648
 
 Preintegrator::Preintegrator()
 {
-    m_vec3_delta_vi_ij.setZero();
-    m_vec3_delta_pi_ij.setZero();
-    m_mat33_delta_vr_ij.setZero();
-    m_mat33_delta_pr_ij.setZero();
-    m_mat33_delta_phi_ij.setIdentity();
-    m_vec3_prev_omega.setZero();
-    m_vec3_curr_omega.setZero();
-    m_double_latestTS = 0;
-    m_double_elapsedT = 0;
+    clear();
 }
 
 Preintegrator::~Preintegrator()
@@ -50,9 +40,10 @@ void Preintegrator::addSignals(double ax, double ay, double az, double rx, doubl
 
     m_double_latestTS = ts;
     m_double_elapsedT = m_double_elapsedT + dt;
+    m_int_numberofsignals++;
 }
 
-void Preintegrator::setPrevOmega(Eigen::Vector3d v)
+void Preintegrator::setPrevOmega(const Eigen::Vector3d& v)
 {
     m_vec3_prev_omega = v;
 }
@@ -76,8 +67,9 @@ void Preintegrator::printAll()
 {
     Sophus::SO3d tmpphi(m_mat33_delta_phi_ij);
     cout << "Elapsed Time: " << m_double_elapsedT << endl;
+    cout << "number of signals integrated: " << m_int_numberofsignals << endl;
     cout << "Conventional Delta Phi" << endl;
-    cout << tmpphi.angleX() * rad2deg << " " << tmpphi.angleY() * rad2deg << " " << tmpphi.angleZ() * rad2deg << endl;
+    cout << tmpphi.angleX() * Rad2deg << " " << tmpphi.angleY() * Rad2deg << " " << tmpphi.angleZ() * Rad2deg << endl;
     cout << "Conventional Delta V" << endl;
     cout << m_vec3_delta_vi_ij.transpose() << endl;
     cout << "Conventional Delta P" << endl;
@@ -86,4 +78,22 @@ void Preintegrator::printAll()
     cout << m_mat33_delta_vr_ij << endl;
     cout << "Relative Delta P" << endl;
     cout << m_mat33_delta_pr_ij << endl;
+}
+
+int Preintegrator::getNumSignals(){
+    return m_int_numberofsignals;
+}
+
+void Preintegrator::clear()
+{
+    m_vec3_delta_vi_ij.setZero();
+    m_vec3_delta_pi_ij.setZero();
+    m_mat33_delta_vr_ij.setZero();
+    m_mat33_delta_pr_ij.setZero();
+    m_mat33_delta_phi_ij.setIdentity();
+    m_vec3_prev_omega.setZero();
+    m_vec3_curr_omega.setZero();
+    m_double_latestTS = 0;
+    m_double_elapsedT = 0;
+    m_int_numberofsignals = 0;
 }

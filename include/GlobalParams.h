@@ -13,6 +13,8 @@ typedef enum
 class GlobalParams
 {
   public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  public:
     GlobalParams()
     {
         m_float_fast_threshold = 10.0f;
@@ -57,13 +59,13 @@ class GlobalParams
     int getMinfeaturedist(){
         return m_int_mindistfeature;
     }
-    void setK(Eigen::Matrix3d K){
+    void setK(const Eigen::Matrix3d& K){
         m_mat3_K = K;
         m_mat3_Kinv = m_mat3_K.inverse();
         eigen2cv(m_mat3_K, m_cvmat_K);
         eigen2cv(m_mat3_Kinv, m_cvmat_Kinv);
     }
-    void setD(Eigen::Matrix<double, 5, 1>& D){
+    void setD(const Eigen::Matrix<double, 5, 1>& D){
         m_vec5_D = D;
         eigen2cv(m_vec5_D, m_cvmat_D);
     }

@@ -6,6 +6,8 @@
 class ImuData
 {
   public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  public:
     ImuData();
     ~ImuData();
     ImuData& operator=(const ImuData& dat);
