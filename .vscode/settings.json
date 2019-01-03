@@ -55,6 +55,8 @@
         "bitset": "cpp",
         "cinttypes": "cpp",
         "typeindex": "cpp",
-        "*.ipp": "cpp"
-    }
+        "*.ipp": "cpp",
+        "unordered_set": "cpp"
+    },
+    "C_Cpp.configurationWarnings": "Disabled"
 }

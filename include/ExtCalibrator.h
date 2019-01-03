@@ -28,9 +28,12 @@
 // Also, we will initialize the robot at some location using a Prior factor.
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
+#include <gtsam/navigation/CombinedImuFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
 
 #include <deque>
 
+#include "Preintegration/RelativeImuFactor.h"
 #include "LowPassFilter.h"
 #include "Parameters.h"
 #include "ImuData.h"
@@ -65,11 +68,18 @@ class ExtCalibrator
     std::shared_ptr<Frame> m_ptrPrevframe;
 
     bool m_bVeryFirst;
-    gtsam::NonlinearFactorGraph m_graph;
-    gtsam::Cal3_S2::shared_ptr m_ptrK;
-    gtsam::noiseModel::Isotropic::shared_ptr m_ptrMeasurementNoise;
-    gtsam::noiseModel::Diagonal::shared_ptr m_ptrPoseNoise;
-    gtsam::noiseModel::Isotropic::shared_ptr m_ptrPointNoise;
+    std::shared_ptr<gtsam::NonlinearFactorGraph> m_ptr_maingraph;
+    gtsam::Cal3_S2::shared_ptr m_ptr_cameraK;
+    gtsam::noiseModel::Isotropic::shared_ptr m_ptr_point2DNoise;
+    gtsam::noiseModel::Diagonal::shared_ptr m_ptr_pose6DNoise;
+    gtsam::noiseModel::Diagonal::shared_ptr m_ptr_extrinsic6DNoise;
+    gtsam::noiseModel::Isotropic::shared_ptr m_ptr_point3DNoise;
+    gtsam::noiseModel::Diagonal::shared_ptr m_ptr_vel3DNoise; 
+    gtsam::noiseModel::Diagonal::shared_ptr m_ptr_bias6DNoise;
+
+    std::shared_ptr<gtsam::PreintegrationType> m_ptr_imu_preintegrated;
+
+
     gtsam::Values m_initialEstimates;
     gtsam::Values m_currentEstimates;
     std::shared_ptr<gtsam::ISAM2> m_ptrISAM2;

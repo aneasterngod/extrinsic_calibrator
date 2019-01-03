@@ -34,22 +34,16 @@ add_executable (excalib
     ImuData.cpp
     Frame.cpp
     Preintegrator.cpp 
-    
-    #PclVisualizerWrapper.cpp
-    #Calibrator.cpp    
-    #FrameData.cpp
-    
-    #RightJacobian.cpp
-    
-    #CvVisualizer.cpp 
-    #custom_ceres/ceres_BA.cpp
-    #custom_gtsam/gtsam_slam.cpp
-    
+    RightJacobian.cpp
+    Preintegration/RelativeImuFactor.cpp
 )
 
-add_executable(testexcalib
-    test.cpp
-    Preintegrator.cpp    
+add_library(RelativeImuFactor SHARED
+    Preintegration/RelativeImuFactor.cpp    
+)
+
+add_executable(testimu
+    Preintegration/ImuFactorsExample.cpp
 )
 
 target_link_libraries(excalib
@@ -58,7 +52,7 @@ target_link_libraries(excalib
     opencv_imgproc
     opencv_imgcodecs
     opencv_features2d
-    opencv_calib3d
+    opencv_calib3d 
     opencv_video
     pthread
     boost_system
@@ -76,11 +70,18 @@ target_link_libraries(excalib
     boost_thread  
 ) 
 
-target_link_libraries(testexcalib
-    opencv_core
-    opencv_highgui
-    opencv_imgproc
-    pthread
+target_link_libraries(RelativeImuFactor
+    gtsam
 )
 
-set(CMAKE_BUILD_TYPE Debug)
+target_link_libraries(testimu
+    pthread
+    boost_system
+    tbb
+    tbbmalloc
+    gtsam      
+    boost_thread  
+    RelativeImuFactor
+) 
+
+set(CMAKE_BUILD_TYPE Debug) 
